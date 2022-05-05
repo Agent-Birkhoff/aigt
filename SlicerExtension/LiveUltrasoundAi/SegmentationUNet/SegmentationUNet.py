@@ -522,7 +522,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         parameterNode.SetParameter(self.AI_MODEL_FULLPATH, modelFullpath)
 
         try:
-            self.unet_model = ort.InferenceSession(modelFullpath)
+            self.unet_model = ort.InferenceSession(modelFullpath, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
             # self.unet_model.call = tf.function(self.unet_model.call)  # For TensorFlow Only
             logging.info("Model loaded from file: {}".format(modelFullpath))
             settings = qt.QSettings()
@@ -772,7 +772,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             resized_input_array, axis=0
         )  # Add Batch dimension
 
-        ort_inputs = {self.unet_model.get_inputs()[0].name: resized_input_array}
+        ort_inputs = {self.unet_model.get_inputs()[0].name: resized_input_array.astype(np.float32)}
         y = self.unet_model.run(None, ort_inputs)
 
         output_array = y[0]  # (F, M)

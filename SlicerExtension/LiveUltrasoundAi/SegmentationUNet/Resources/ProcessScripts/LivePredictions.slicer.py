@@ -104,7 +104,7 @@ try:
     # Load AI model
     # If you are doing Batch Size == 1 predictions, this tends to speed things up in TensorFlow (wrapping .call in a @tf.function decorator)
 
-    model = ort.InferenceSession(input_data["model_path"])
+    model = ort.InferenceSession(input_data["model_path"], providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
 
     # Determine resize factors
 
@@ -132,7 +132,7 @@ try:
     # Run a dummy prediction to initialize
 
     input_array = resizeInputArray(input_data["volume"])
-    ort_inputs = {model.get_inputs()[0].name: input_array}
+    ort_inputs = {model.get_inputs()[0].name: input_array.astype(np.float32)}
     _ = model.run(None, ort_inputs)
 
     # Starting loop to receive images until status set to NOT_ACTIVE
@@ -155,7 +155,7 @@ try:
             input_array = input_array[0, :, :]
         input_array = resizeInputArray(input_array)
 
-        ort_inputs = {model.get_inputs()[0].name: input_array}
+        ort_inputs = {model.get_inputs()[0].name: input_array.astype(np.float32)}
         y = model.run(None, ort_inputs)
         # f.write("Prediction shape in while loop: {}\n".format(y.shape))
         output_array = resizeOutputArray(y)
