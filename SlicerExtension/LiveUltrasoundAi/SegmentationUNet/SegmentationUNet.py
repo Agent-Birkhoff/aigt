@@ -14,13 +14,15 @@ from slicer.ScriptedLoadableModule import *
 from slicer.util import VTKObservationMixin
 
 try:
+    import PyTorchUtils
     from Processes import Process, ProcessesLogic
+
+    torch = PyTorchUtils.PyTorchUtilsLogic().torch  # will be installed if necessary
 except:
-    # slicer.util.messageBox("Segmentation UNet module requires ParallelProcessing extension. Install it and restart Slicer.")
     msg = qt.QMessageBox()
     msg.setIcon(qt.QMessageBox.Information)
     msg.setText(
-        "Segmentation UNet module requires ParallelProcessing extension. Please install it from the Extension Manager\
+        "Segmentation UNet module requires ParallelProcessing and SlicerPyTorch extension. Please install them from the Extension Manager\
                and restart Slicer.\n"
     )
     msg.setWindowTitle("Segmentation UNet module")
@@ -35,6 +37,7 @@ if not hasattr(
 ):  # This patch was needed for a TensorFlow version. Not sure if it's needed anymore.
     sys.argv = [""]
 
+"""
 try:
     import onnxruntime as ort
 except:
@@ -46,17 +49,38 @@ except:
     )
     msg.setWindowTitle("Installing Required Packages")
     msg.setStandardButtons(qt.QMessageBox.Ok)
-    cb = qt.QCheckBox("Use GPU (Requires CUDA v11.3.1 and cuDNN v8.1)")
+    cb = qt.QCheckBox("Use GPU (Requires CUDA v11.1 and cuDNN v8.1)")
     msg.setCheckBox(cb)
     msg.setModal(True)
     retval = msg.exec_()
     if retval:
         qt.QApplication.setOverrideCursor(qt.Qt.WaitCursor)
         if cb.isChecked():
-            slicer.util.pip_install("onnxruntime-gpu scipy scikit-image")  # TODO
+            slicer.util.pip_install("onnxruntime-gpu scipy scikit-image")
         else:
-            slicer.util.pip_install("onnxruntime scipy scikit-image")  # TODO
+            slicer.util.pip_install("onnxruntime scipy scikit-image")
         qt.QApplication.restoreOverrideCursor()
+"""
+
+
+device = torch.device("cpu")
+msg = qt.QMessageBox()
+msg.setIcon(qt.QMessageBox.Information)
+msg.setText("Choose whether to use GPU or not.\n")
+msg.setWindowTitle("GPU Support")
+msg.setStandardButtons(qt.QMessageBox.Ok)
+cb = qt.QCheckBox("Use GPU (Requires CUDA v11.1 and cuDNN v8.1)")
+msg.setCheckBox(cb)
+msg.setModal(True)
+retval = msg.exec_()
+if retval:
+    qt.QApplication.setOverrideCursor(qt.Qt.WaitCursor)
+    if cb.isChecked():
+        if torch.cuda.is_available():
+            device = torch.device("cuda", 0)  # single card TODO
+        else:
+            logging.error("GPU is not available right now, please check again!")
+    qt.QApplication.restoreOverrideCursor()
 
 
 #
@@ -521,9 +545,27 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             return
         parameterNode.SetParameter(self.AI_MODEL_FULLPATH, modelFullpath)
 
+        # TODO
+        modelPath = slicer.modules.segmentationunet.path.replace(
+            "SegmentationUNet.py", "model"
+        )
+        sys.path.append(modelPath)
         try:
-            self.unet_model = ort.InferenceSession(modelFullpath, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-            # self.unet_model.call = tf.function(self.unet_model.call)  # For TensorFlow Only
+            from unet import UNet
+
+            self.unet_model = UNet(n_channels=1, n_classes=2)  # TODO
+        except:
+            logging.error(
+                "Could not import model from file: {}".format(modelPath + "/unet.py")
+            )
+
+        try:
+            self.unet_model.load_state_dict(
+                torch.load(modelFullpath, map_location="cpu")
+            )
+            self.unet_model.to(device)
+            self.unet_model.eval()
+
             logging.info("Model loaded from file: {}".format(modelFullpath))
             settings = qt.QSettings()
             settings.setValue(self.LAST_AI_MODEL_PATH_SETTING, modelFullpath)
@@ -587,7 +629,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             input_array = slicer.util.array(inputImageNode.GetID())  # (Z, F, M)
             input_array = input_array[0, :, :]  # (F, M)
 
-            input0_shape = self.unet_model.get_inputs()[0].shape  # (b,c,h,w)
+            input0_shape = self.unet_model.get_inputs()  # (b,c,h,w) TODO
             model_input_shape = (input0_shape[1], input0_shape[2], input0_shape[3])
 
             self.slicer_to_model_scaling = (
@@ -772,10 +814,10 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             resized_input_array, axis=0
         )  # Add Batch dimension
 
-        ort_inputs = {self.unet_model.get_inputs()[0].name: resized_input_array.astype(np.float32)}
-        y = self.unet_model.run(None, ort_inputs)
+        y = self.unet_model(torch.tensor(resized_input_array, dtype=torch.float32, device=device))
+        output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
+        # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))    
 
-        output_array = y[0]  # (F, M)
         """
         output_array = np.flip(
             output_array, axis=0

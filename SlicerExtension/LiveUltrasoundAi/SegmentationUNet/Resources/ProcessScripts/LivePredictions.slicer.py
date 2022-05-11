@@ -3,8 +3,15 @@ import sys
 import traceback
 
 import numpy as np
-import onnxruntime as ort
+import PyTorchUtils
+import slicer
 from PIL import Image
+
+torch = PyTorchUtils.PyTorchUtilsLogic().torch  # will be installed if necessary
+if torch.cuda.is_available():
+    device = torch.device("cuda", 0)  # automatically, single card TODO
+else:
+    device = torch.device("cpu")
 
 ACTIVE = bytes([1])
 NOT_ACTIVE = bytes([0])
@@ -54,11 +61,11 @@ def resizeInputArray(input_array):
     resized_input_array = np.expand_dims(
         resized_input_array, axis=0
     )  # Add Batch dimension
-    return resized_input_array
+    return torch.tensor(resized_input_array, dtype=torch.float32, device=device)
 
 
 def resizeOutputArray(y):
-    output_array = y[0]  # (F, M)
+    output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
     """
     output_array = np.flip(
         output_array, axis=0
@@ -86,7 +93,6 @@ def resizeOutputArray(y):
 
 
 # Do first read at the same time that we instantiate the model, this ensures that the graph is written/ready right away when we start live predictions.
-
 try:
     input = sys.stdin.buffer.read(1)  # Read control byte
     if input == ACTIVE:
@@ -101,20 +107,29 @@ try:
         input_data
     )  # Axes: (F, M) because slicer.util.array reverses axis order from IJK to KJI
 
-    # Load AI model
-    # If you are doing Batch Size == 1 predictions, this tends to speed things up in TensorFlow (wrapping .call in a @tf.function decorator)
+    # Load AI model TODO
+    modelPath = slicer.modules.segmentationunet.path.replace(
+        "SegmentationUNet.py", "model"
+    )
+    sys.path.append(modelPath)  # May not need
+    try:
+        from unet import UNet
 
-    model = ort.InferenceSession(input_data["model_path"], providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+        model = UNet(n_channels=1, n_classes=2)  # TODO
+    except:
+        f.write(
+            "Could not import model from file: {}\n".format(modelPath + "/unet.py")
+        )
+
+    try:
+        model.load_state_dict(
+            torch.load(input_data["model_path"], map_location="cpu")
+        )
+        model.to(device)
+        model.eval()
 
     # Determine resize factors
-
-    """
-    for layer in model.layers:
-        if "input" in layer.name:
-            model_input_shape = layer.input_shape[0]
-    """
-
-    input0_shape = model.get_inputs()[0].shape  # (b,c,h,w)
+    input0_shape = model.get_inputs()  # (b,c,h,w) TODO
     model_input_shape = (input0_shape[1], input0_shape[2], input0_shape[3])
 
     # f.write("model_input_shape:  {}\n".format(str(model_input_shape)))
@@ -130,13 +145,10 @@ try:
     )
 
     # Run a dummy prediction to initialize
-
     input_array = resizeInputArray(input_data["volume"])
-    ort_inputs = {model.get_inputs()[0].name: input_array.astype(np.float32)}
-    _ = model.run(None, ort_inputs)
+    _ = model(input_array)
 
     # Starting loop to receive images until status set to NOT_ACTIVE
-
     while True:
         input = sys.stdin.buffer.read(1)  # Read control byte
         # f.write("Active status: {}\n".format(str(input)))
@@ -155,8 +167,7 @@ try:
             input_array = input_array[0, :, :]
         input_array = resizeInputArray(input_array)
 
-        ort_inputs = {model.get_inputs()[0].name: input_array.astype(np.float32)}
-        y = model.run(None, ort_inputs)
+        y = model(input_array)
         # f.write("Prediction shape in while loop: {}\n".format(y.shape))
         output_array = resizeOutputArray(y)
 
