@@ -815,7 +815,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         )  # Add Batch dimension
 
         y = self.unet_model(torch.tensor(resized_input_array, dtype=torch.float32, device=device))
-        output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
+        output_array = y[0, 0, :, :].cpu().numpy()  # (F, M) TODO
         # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))
 
         """

@@ -65,7 +65,7 @@ def resizeInputArray(input_array):
 
 
 def resizeOutputArray(y):
-    output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
+    output_array = y[0, 0, :, :].cpu().numpy()  # (F, M) TODO
     """
     output_array = np.flip(
         output_array, axis=0
