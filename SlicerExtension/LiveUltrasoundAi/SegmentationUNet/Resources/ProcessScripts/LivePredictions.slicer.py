@@ -115,7 +115,7 @@ try:
     try:
         from unet import UNet
 
-        model = UNet(n_channels=1, n_classes=2)  # TODO
+        model = UNet()  # TODO
     except:
         f.write(
             "Could not import model from file: {}\n".format(modelPath + "/unet.py")

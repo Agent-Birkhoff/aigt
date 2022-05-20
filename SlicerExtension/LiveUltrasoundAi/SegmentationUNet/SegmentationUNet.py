@@ -553,7 +553,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         try:
             from unet import UNet
 
-            self.unet_model = UNet(n_channels=1, n_classes=2)  # TODO
+            self.unet_model = UNet()  # TODO
         except:
             logging.error(
                 "Could not import model from file: {}".format(modelPath + "/unet.py")
@@ -816,7 +816,7 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
 
         y = self.unet_model(torch.tensor(resized_input_array, dtype=torch.float32, device=device))
         output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
-        # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))    
+        # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))
 
         """
         output_array = np.flip(

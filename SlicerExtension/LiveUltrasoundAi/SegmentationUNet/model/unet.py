@@ -113,7 +113,7 @@ class post(torch.nn.Module):
 
 
 class UNet(torch.nn.Module):
-    def __init__(self, n_channels, n_classes, bilinear=False, process=True):
+    def __init__(self, n_channels=1, n_classes=1, bilinear=False, process=True):
         super(UNet, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
