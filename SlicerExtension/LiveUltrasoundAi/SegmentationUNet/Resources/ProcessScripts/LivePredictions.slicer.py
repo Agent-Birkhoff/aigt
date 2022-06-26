@@ -65,7 +65,7 @@ def resizeInputArray(input_array):
 
 
 def resizeOutputArray(y):
-    output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
+    output_array = y[0, 0, :, :].cpu().numpy()  # (F, M) TODO
     """
     output_array = np.flip(
         output_array, axis=0
@@ -113,18 +113,24 @@ try:
     )
     sys.path.append(modelPath)  # May not need
     try:
-        from unet import UNet
+        # from unet import UNet
 
-        model = UNet(n_channels=1, n_classes=2)  # TODO
-    except:
+        # model = UNet(n_channels=1, n_classes=2)  # TODO
+        from model.resunet import YoneModel
+        model_file_path = "C:/Users/31501/Desktop/aigt/SlicerExtension/LiveUltrasoundAi/SegmentationUNet/resunet.ckpt"
+        model = YoneModel("unet","resnet50",None,1,1)
+
+    except Exception as e:
         f.write(
-            "Could not import model from file: {}\n".format(modelPath + "/unet.py")
+            e
+            # "Could not import model from file: {}\n".format(modelPath + "/unet.py")
         )
 
     try:
-        model.load_state_dict(
-            torch.load(input_data["model_path"], map_location="cpu")
-        )
+        ckpt = torch.load(model_file_path, map_location=torch.device('cpu'))
+        state_dict = ckpt["state_dict"]
+        model.load_state_dict(state_dict)
+
         model.to(device)
         model.eval()
 
