@@ -79,7 +79,8 @@ if retval:
         if torch.cuda.is_available():
             device = torch.device("cuda", 0)  # single card TODO
         else:
-            logging.error("GPU is not available right now, please check again!")
+            logging.error(
+                "GPU is not available right now, please check again!")
     qt.QApplication.restoreOverrideCursor()
 
 
@@ -100,7 +101,8 @@ class SegmentationUNet(ScriptedLoadableModule):
         self.parent.dependencies = (
             []
         )  # TODO: add here list of module names that this module requires
-        self.parent.contributors = ["Tamas Ungi (Queen's University), Zac Baum (UCL)"]
+        self.parent.contributors = [
+            "Tamas Ungi (Queen's University), Zac Baum (UCL)"]
         self.parent.helpText = (
             """Computes ultrasound segmentation prediction using UNet in real time."""
         )
@@ -125,7 +127,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def __init__(self, parent=None):
         ScriptedLoadableModuleWidget.__init__(self, parent)
-        VTKObservationMixin.__init__(self)  # needed for parameter node observation
+        # needed for parameter node observation
+        VTKObservationMixin.__init__(self)
         self.logic = None
         self._parameterNode = None
 
@@ -161,7 +164,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
         # Load widget from .ui file (created by Qt Designer)
 
-        uiWidget = slicer.util.loadUI(self.resourcePath("UI/SegmentationUNet.ui"))
+        uiWidget = slicer.util.loadUI(
+            self.resourcePath("UI/SegmentationUNet.ui"))
         self.layout.addWidget(uiWidget)
         self.ui = slicer.util.childWidgetVariables(uiWidget)
 
@@ -300,7 +304,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         )
 
         self.ui.processCheckBox.checked = (
-            self._parameterNode.GetParameter(self.logic.USE_SEPARATE_PROCESS).lower()
+            self._parameterNode.GetParameter(
+                self.logic.USE_SEPARATE_PROCESS).lower()
             == "true"
         )
         self.ui.applyButton.checked = self.logic.getPredictionActive()
@@ -342,7 +347,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             logging.info("Apply button clicked without input selection")
             return
         else:
-            logging.info("Input image: {}".format(self.inputImageNode.GetName()))
+            logging.info("Input image: {}".format(
+                self.inputImageNode.GetName()))
 
         self.outputImageNode = self.ui.outputSelector.currentNode()
         if self.outputImageNode is None:
@@ -350,7 +356,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             logging.info("Apply button clicked without output selection")
             return
         else:
-            logging.info("Output image: {}".format(self.outputImageNode.GetName()))
+            logging.info("Output image: {}".format(
+                self.outputImageNode.GetName()))
 
         if self.logic.unet_model is None:
             self.ui.feedbackLabel.text = "UNet model not selected!"
@@ -385,7 +392,8 @@ class SegmentationUNetWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
             self.logic.setRealTimePrediction(toggled)
         except Exception as e:
-            slicer.util.errorDisplay("Failed to start live segmentation: " + str(e))
+            slicer.util.errorDisplay(
+                "Failed to start live segmentation: " + str(e))
             import traceback
 
             traceback.print_exc()
@@ -401,7 +409,8 @@ class LivePredictionProcess(Process):
         self.output_transform = np.identity(
             4
         )  # This will be updated from the process and read along with prediction
-        self.model_path = model_path  # Path to the TF model you'd like to load, as TF Models are not picklable.
+        # Path to the TF model you'd like to load, as TF Models are not picklable.
+        self.model_path = model_path
         self.active = (
             bytes([1]) if active else bytes([0])
         )  # Used to stop the process by enabling/disabling the script.
@@ -462,7 +471,8 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
     OUTPUT_TRANSFORM = "OutputTransform"
     OUTPUT_FPS = "OutputFps"
     PREDICTION_ACTIVE = "PredictionActive"
-    WAIT_FOR_NODE = "WaitForNode"  # Experimental idea: drop predictions until e.g. volume reconstruction output is updated
+    # Experimental idea: drop predictions until e.g. volume reconstruction output is updated
+    WAIT_FOR_NODE = "WaitForNode"
     AI_MODEL_FULLPATH = "AiModelFullpath"
     LAST_AI_MODEL_PATH_SETTING = "SegmentationUNet/LastAiModelPath"
     USE_SEPARATE_PROCESS = "UseSeparateProcess"
@@ -498,7 +508,8 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         if selectedNode is None:
             parameterNode.SetNodeReferenceID(self.WAIT_FOR_NODE, None)
         else:
-            parameterNode.SetNodeReferenceID(self.WAIT_FOR_NODE, selectedNode.GetID())
+            parameterNode.SetNodeReferenceID(
+                self.WAIT_FOR_NODE, selectedNode.GetID())
         self.waitForNodeLastMTime = 0  # Use output in first round
 
     def setInputImage(self, inputImageNode):
@@ -512,7 +523,8 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             parameterNode.SetNodeReferenceID(self.INPUT_IMAGE, None)
             return
 
-        parameterNode.SetNodeReferenceID(self.INPUT_IMAGE, inputImageNode.GetID())
+        parameterNode.SetNodeReferenceID(
+            self.INPUT_IMAGE, inputImageNode.GetID())
 
     def setOutputImage(self, outputImageNode):
         """
@@ -524,14 +536,16 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         if outputImageNode is None:
             paramterNode.SetNodeReferenceID(self.OUTPUT_IMAGE, None)
             return
-        paramterNode.SetNodeReferenceID(self.OUTPUT_IMAGE, outputImageNode.GetID())
+        paramterNode.SetNodeReferenceID(
+            self.OUTPUT_IMAGE, outputImageNode.GetID())
 
     def setOutputTransform(self, selectedNode):
         parameterNode = self.getParameterNode()
         if selectedNode is None:
             parameterNode.SetNodeReferenceID(self.OUTPUT_TRANSFORM, None)
             return
-        parameterNode.SetNodeReferenceID(self.OUTPUT_TRANSFORM, selectedNode.GetID())
+        parameterNode.SetNodeReferenceID(
+            self.OUTPUT_TRANSFORM, selectedNode.GetID())
 
     def setModelPath(self, modelFullpath):
         """
@@ -551,26 +565,32 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         )
         sys.path.append(modelPath)
         try:
-            from unet import UNet
-
-            self.unet_model = UNet(n_channels=1, n_classes=2)  # TODO
-        except:
-            logging.error(
-                "Could not import model from file: {}".format(modelPath + "/unet.py")
-            )
+            model_file_path = "C:/Users/31501/Desktop/aigt/SlicerExtension/LiveUltrasoundAi/SegmentationUNet/resunet.ckpt"
+            from model.resunet import YoneModel
+            self.unet_model = YoneModel("unet","resnet50",None,1,1)
+            # from unet import UNet
+            # self.unet_model = UNet(n_channels=1,n_classes=2)
+        except Exception as e:
+            logging.error(e)
+            # logging.error(
+            #     "Could not import model from file: {}".format(
+            #         modelPath + "/resunet.py")
+            # )
 
         try:
-            self.unet_model.load_state_dict(
-                torch.load(modelFullpath, map_location="cpu")
-            )
+            # self.unet_model.load_state_dict(torch.load(modelFullpath,map_location="cpu"))
+            ckpt = torch.load(model_file_path, map_location=torch.device('cpu'))
+            state_dict = ckpt["state_dict"]
+            self.unet_model.load_state_dict(state_dict)
+
             self.unet_model.to(device)
             self.unet_model.eval()
-
             logging.info("Model loaded from file: {}".format(modelFullpath))
             settings = qt.QSettings()
             settings.setValue(self.LAST_AI_MODEL_PATH_SETTING, modelFullpath)
         except Exception as e:
-            logging.error("Could not load model from file: {}".format(modelFullpath))
+            logging.error(
+                "Could not load model from file: {}".format(modelFullpath))
             logging.error("Exception: {}".format(str(e)))
 
     def setupProcess(self):
@@ -609,13 +629,18 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             completedCallback=lambda: onLivePredictProcessCompleted()
         )
         processLogic.addProcess(self.livePredictionProcess)
-        processLogic.run()
+        try:
+            processLogic.run()
+        except Exception as e:
+            logging("hello")
+            logging.info(e)
         logging.info("Live Prediction: Process Started")
 
     def setRealTimePrediction(self, toggled):
         inputImageNode = self.getParameterNode().GetNodeReference(self.INPUT_IMAGE)
         if inputImageNode is None:
-            logging.error("Cannot start live prediction, input image not specified")
+            logging.error(
+                "Cannot start live prediction, input image not specified")
             return
 
         if self.unet_model is None:
@@ -626,15 +651,22 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
 
             # Determine resize factors
 
-            input_array = slicer.util.array(inputImageNode.GetID())  # (Z, F, M)
+            input_array = slicer.util.array(
+                inputImageNode.GetID())  # (Z, F, M)
             input_array = input_array[0, :, :]  # (F, M)
 
             input0_shape = self.unet_model.get_inputs()  # (b,c,h,w) TODO
-            model_input_shape = (input0_shape[1], input0_shape[2], input0_shape[3])
+
+            logging.info("\nDEBUG  input_shape: {}".format(input0_shape))
+
+            model_input_shape = (
+                input0_shape[1], input0_shape[2], input0_shape[3])
 
             self.slicer_to_model_scaling = (
-                model_input_shape[1] / input_array.shape[0],  # F direction in image
-                model_input_shape[2] / input_array.shape[1],  # M direction in image
+                # F direction in image
+                model_input_shape[1] / input_array.shape[0],
+                # M direction in image
+                model_input_shape[2] / input_array.shape[1],
             )
             self.model_to_slicer_scaling = (
                 input_array.shape[0] / model_input_shape[1],
@@ -703,11 +735,14 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         try:
             slicer.app.pauseRender()
             output_array = self.livePredictionProcess.output["prediction"]
-            predictionVolumeNode = parameterNode.GetNodeReference(self.OUTPUT_IMAGE)
+            predictionVolumeNode = parameterNode.GetNodeReference(
+                self.OUTPUT_IMAGE)
             slicer.util.updateVolumeFromArray(
-                predictionVolumeNode, output_array.astype(np.uint8)[np.newaxis, ...]
+                predictionVolumeNode, output_array.astype(np.uint8)[
+                    np.newaxis, ...]
             )
-            outputTransformNode = parameterNode.GetNodeReference(self.OUTPUT_TRANSFORM)
+            outputTransformNode = parameterNode.GetNodeReference(
+                self.OUTPUT_TRANSFORM)
             if outputTransformNode is not None:
                 slicer.util.updateTransformMatrixFromArray(
                     outputTransformNode, self.livePredictionProcess.output["transform"]
@@ -814,9 +849,24 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
             resized_input_array, axis=0
         )  # Add Batch dimension
 
-        y = self.unet_model(torch.tensor(resized_input_array, dtype=torch.float32, device=device))
-        output_array = y[0, 1, :, :].cpu().numpy()  # (F, M) TODO
-        # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))    
+        # import matplotlib.pyplot as plt
+        # img_save = resized_input_array[0,...].transpose(1,2,0)
+        # plt.subplot(1,1,1)
+        # plt.savefig("E:/1.jpg")
+        # plt.imshow(img_save,cmap="Greys_r")
+
+        # logging.info("\nDEBUG  input_shape: {}\ninput_min {}\ninput_max{}\n\n".format(resized_input_array.shape,resized_input_array.min(),resized_input_array.max()))
+        y = self.unet_model(torch.tensor(
+            resized_input_array, dtype=torch.float32, device=device))
+        
+        output_array = y[0, 0, :, :].cpu().detach().numpy()  # (F, M) TODO
+        
+        # import matplotlib.pyplot as plt
+        # img_save = output_array[...,np.newaxis]
+        # plt.subplot(1,1,1)
+        # plt.savefig("E:/2.jpg")
+        # plt.imshow(img_save)
+        # logging.info("\nDEBUG  output_shape: {}\noutput_min {}\noutput_max{}\n\n".format(output_array.shape,output_array.min(),output_array.max()))
 
         """
         output_array = np.flip(
@@ -844,20 +894,25 @@ class SegmentationUNetLogic(ScriptedLoadableModuleLogic, VTKObservationMixin):
         upscaled_output_array = upscaled_output_array * 255
         upscaled_output_array = np.clip(upscaled_output_array, 0, 255)
 
+        # logging.info("upscaled_output_array:{}\n".format(upscaled_output_array.shape))
+
         outputImageNode = parameterNode.GetNodeReference(self.OUTPUT_IMAGE)
         slicer.util.updateVolumeFromArray(
-            outputImageNode, upscaled_output_array.astype(np.uint8)[np.newaxis, ...]
+            outputImageNode, upscaled_output_array.astype(np.uint8)[
+                np.newaxis, ...]
         )
 
         # Update output transform, just to be compatible with running separate process
 
         inputImageNode = parameterNode.GetNodeReference(self.INPUT_IMAGE)
         imageTransformNode = inputImageNode.GetParentTransformNode()
-        outputTransformNode = parameterNode.GetNodeReference(self.OUTPUT_TRANSFORM)
+        outputTransformNode = parameterNode.GetNodeReference(
+            self.OUTPUT_TRANSFORM)
         if imageTransformNode is not None and outputTransformNode is not None:
             inputTransformMatrix = vtk.vtkMatrix4x4()
             imageTransformNode.GetMatrixTransformToWorld(inputTransformMatrix)
-            outputTransformNode.SetMatrixTransformToParent(inputTransformMatrix)
+            outputTransformNode.SetMatrixTransformToParent(
+                inputTransformMatrix)
 
         self.updateOutputFps()  # Update FPS data
 

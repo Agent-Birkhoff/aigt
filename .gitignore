@@ -9,3 +9,4 @@
 
 # Ignore pyc files
 *.pyc
+*.ckpt
